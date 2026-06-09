@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#08111f" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>NodeControl | Notes</title>
+  </head>
+  <body data-page="notes">
+    <main class="container">
+      <header class="topbar">
+        <div>
+          <h1>NodeControl</h1>
+          <p class="muted">Notes</p>
+        </div>
+        <nav class="nav">
+          <a class="active" href="/notes.html">Notes</a>
+          <a href="/files.html">Files</a>
+          <a href="/system.html">System</a>
+          <button id="logout-button" type="button" class="secondary">Logout</button>
+        </nav>
+      </header>
+
+      <section class="panel">
+        <div class="toolbar">
+          <input id="note-search" type="search" placeholder="Search notes..." />
+        </div>
+        <form id="note-form" class="stack">
+          <textarea id="note-content" rows="4" placeholder="Write a note..." required></textarea>
+          <button type="submit">Add Note</button>
+        </form>
+        <p id="notes-message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section class="panel">
+        <div id="notes-list" class="list"></div>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

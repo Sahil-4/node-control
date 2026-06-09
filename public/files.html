@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#08111f" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>NodeControl | Files</title>
+  </head>
+  <body data-page="files">
+    <main class="container">
+      <header class="topbar">
+        <div>
+          <h1>NodeControl</h1>
+          <p class="muted">Files</p>
+        </div>
+        <nav class="nav">
+          <a href="/notes.html">Notes</a>
+          <a class="active" href="/files.html">Files</a>
+          <a href="/system.html">System</a>
+          <button id="logout-button" type="button" class="secondary">Logout</button>
+        </nav>
+      </header>
+
+      <section class="panel">
+        <div class="toolbar">
+          <input id="file-filter" type="search" placeholder="Filter files..." />
+        </div>
+        <form id="upload-form" class="stack">
+          <input id="upload-input" name="file" type="file" required />
+          <button type="submit">Upload File</button>
+        </form>
+        <p id="files-message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section class="panel">
+        <div id="files-list" class="list"></div>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

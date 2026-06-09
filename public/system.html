@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#08111f" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>NodeControl | System</title>
+  </head>
+  <body data-page="system">
+    <main class="container">
+      <header class="topbar">
+        <div>
+          <h1>NodeControl</h1>
+          <p class="muted">System Utilities</p>
+        </div>
+        <nav class="nav">
+          <a href="/notes.html">Notes</a>
+          <a href="/files.html">Files</a>
+          <a class="active" href="/system.html">System</a>
+          <button id="logout-button" type="button" class="secondary">Logout</button>
+        </nav>
+      </header>
+
+      <section class="panel">
+        <form id="system-form" class="stack">
+          <label>
+            Action
+            <select id="system-action" required>
+              <option value="HTOP">HTOP</option>
+              <option value="LS">LS</option>
+              <option value="PROCESSES">PROCESSES</option>
+              <option value="SCREENSHOT">SCREENSHOT</option>
+              <option value="REBOOT">REBOOT</option>
+            </select>
+          </label>
+          <label>
+            Optional input
+            <input id="system-input" type="text" placeholder="Used for LS, e.g. uploads" />
+          </label>
+          <button type="submit">Run Action</button>
+        </form>
+        <p id="system-message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section class="panel">
+        <pre id="system-output" class="output">Run an action to see output here.</pre>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

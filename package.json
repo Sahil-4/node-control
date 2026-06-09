@@ -1,0 +1,24 @@
+{
+  "name": "nodecontrol",
+  "version": "1.0.0",
+  "description": "Local-first PWA control panel for notes, files, and controlled system utilities.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "keywords": [
+    "pwa",
+    "express",
+    "notes",
+    "files",
+    "system"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "multer": "^2.0.2"
+  }
+}

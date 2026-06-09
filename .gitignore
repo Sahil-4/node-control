@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+
+# Uploads (keep directory via .gitkeep)
+uploads/*
+!uploads/.gitkeep
+
+# Runtime data
+src/data/notes.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# AI assistant artifacts
+.claude/
+.codex
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.swp

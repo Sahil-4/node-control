@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#08111f" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>NodeControl | Login</title>
+  </head>
+  <body data-page="login">
+    <main class="container narrow">
+      <section class="panel login-terminal">
+        <div class="terminal-chrome" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+          <p>nodecontrol-auth://session</p>
+        </div>
+        <div class="login-terminal-body">
+          <h1>NodeControl</h1>
+          <p class="muted login-subtitle">Authenticate to enter the local control shell.</p>
+          <form id="login-form" class="stack login-form">
+            <label class="terminal-inline-label">
+              <span>username:</span>
+              <input id="username" name="username" type="text" autocomplete="username" spellcheck="false" required />
+            </label>
+            <label class="terminal-inline-label">
+              <span>password:</span>
+              <input id="password" name="password" type="password" autocomplete="current-password" required />
+            </label>
+            <button type="submit">Initiate Session</button>
+            <p id="login-message" class="message login-message" aria-live="polite"></p>
+          </form>
+        </div>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
