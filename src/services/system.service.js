@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
 const uploadsDir = path.join(projectRoot, 'uploads');
@@ -103,6 +103,72 @@ async function runAction(action, input) {
   }
 }
 
+function buildCommand(action, input) {
+  const allowedAction = String(action || '').trim().toUpperCase();
+  switch (allowedAction) {
+    case 'HTOP':
+      return "if command -v top >/dev/null 2>&1; then top -b -n 1 | head -n 40; else exit 1; fi";
+    case 'LS': {
+      const safeDir = resolveSafeDirectory(input);
+      return `ls -la ${shellEscape(safeDir)}`;
+    }
+    case 'PROCESSES':
+      return 'ps aux';
+    case 'SCREENSHOT': {
+      const filename = `screenshot-${Date.now()}.png`;
+      const destination = path.join(uploadsDir, filename);
+      return `if command -v import >/dev/null 2>&1; then import -window root ${shellEscape(destination)}; elif command -v scrot >/dev/null 2>&1; then scrot ${shellEscape(destination)}; else exit 1; fi`;
+    }
+    case 'REBOOT':
+      if (String(process.env.ALLOW_REBOOT).toLowerCase() !== 'true') {
+        const error = new Error('Reboot is disabled by configuration');
+        error.statusCode = 403;
+        throw error;
+      }
+      return 'reboot';
+    default: {
+      const error = new Error('Unsupported action');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+}
+
+function streamAction(action, input, socket) {
+  let command;
+  try {
+    command = buildCommand(action, input);
+  } catch (err) {
+    socket.emit('system:error', { message: err.message });
+    return;
+  }
+
+  const proc = spawn('sh', ['-c', command]);
+  let killed = false;
+
+  const killTimer = setTimeout(() => {
+    killed = true;
+    proc.kill();
+    socket.emit('system:error', { message: 'Command timed out' });
+  }, commandTimeoutMs);
+
+  proc.stdout.on('data', (chunk) => socket.emit('system:output', { chunk: chunk.toString() }));
+  proc.stderr.on('data', (chunk) => socket.emit('system:output', { chunk: chunk.toString() }));
+
+  proc.on('close', (code) => {
+    clearTimeout(killTimer);
+    if (!killed) {
+      socket.emit('system:done', { exitCode: code });
+    }
+  });
+
+  proc.on('error', (err) => {
+    clearTimeout(killTimer);
+    socket.emit('system:error', { message: err.message });
+  });
+}
+
 module.exports = {
-  runAction
+  runAction,
+  streamAction
 };
