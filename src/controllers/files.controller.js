@@ -1,4 +1,5 @@
 const filesService = require('../services/files.service');
+const logger = require('../services/logger.service');
 
 function listFiles(req, res, next) {
   try {
@@ -9,6 +10,7 @@ function listFiles(req, res, next) {
 }
 
 function uploadFile(req, res, next) {
+  const ip = req.clientIp || req.ip || '-';
   try {
     if (!req.file) {
       const error = new Error('File is required');
@@ -16,6 +18,7 @@ function uploadFile(req, res, next) {
       throw error;
     }
 
+    logger.log('FILE_UPLOAD', ip, `name=${req.file.filename} size=${req.file.size}`);
     res.status(201).json({
       name: req.file.filename,
       size: req.file.size,
@@ -27,8 +30,10 @@ function uploadFile(req, res, next) {
 }
 
 function deleteFile(req, res, next) {
+  const ip = req.clientIp || req.ip || '-';
   try {
     filesService.deleteFile(req.params.name);
+    logger.log('FILE_DELETE', ip, `name=${req.params.name}`);
     res.status(204).send();
   } catch (error) {
     next(error);
