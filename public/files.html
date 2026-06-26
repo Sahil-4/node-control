@@ -19,6 +19,8 @@
           <a href="/notes.html">Notes</a>
           <a class="active" href="/files.html">Files</a>
           <a href="/system.html">System</a>
+          <a href="/monitor.html">Monitor</a>
+          <a href="/clipboard.html">Clipboard</a>
           <button id="logout-button" type="button" class="secondary">Logout</button>
         </nav>
       </header>
@@ -38,6 +40,48 @@
         <div id="files-list" class="list"></div>
       </section>
     </main>
+
+    <!-- File viewer modal -->
+    <div id="viewer-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="File Viewer">
+      <div class="modal-box modal-box--wide">
+        <div class="modal-header">
+          <span id="viewer-title">Preview</span>
+          <button type="button" id="viewer-modal-close" class="secondary">Close</button>
+        </div>
+        <div id="viewer-content" class="viewer-content"></div>
+      </div>
+    </div>
+
+    <!-- Share modal -->
+    <div id="share-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Share File">
+      <div class="modal-box">
+        <div class="modal-header">
+          <span>Share Link</span>
+          <button type="button" id="share-modal-close" class="secondary">Close</button>
+        </div>
+        <p class="muted" style="margin-bottom:0.5rem;">This link works once and expires in 1 hour. No login required.</p>
+        <input id="share-url" type="text" readonly style="width:100%;margin-bottom:0.5rem;" />
+        <div class="actions">
+          <button type="button" id="share-copy">Copy Link</button>
+          <button type="button" id="share-qr" class="secondary">QR Code</button>
+        </div>
+        <div id="share-qr-container" class="qr-container" style="margin-top:0.75rem;"></div>
+      </div>
+    </div>
+
+    <!-- QR modal -->
+    <div id="qr-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="QR Code">
+      <div class="modal-box">
+        <div class="modal-header">
+          <span>QR Code</span>
+          <button type="button" id="qr-modal-close" class="secondary">Close</button>
+        </div>
+        <div id="qr-container" class="qr-container"></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>
