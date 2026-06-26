@@ -197,7 +197,8 @@
 
       try {
         await apiFetch("/api/auth/verify");
-        location.href = "/notes.html";
+        const cfg = await fetch("/api/config").then(r => r.json()).catch(() => ({}));
+        location.href = `/${cfg.landingPage || "monitor.html"}`;
       } catch (error) {
         clearAuth();
         setMessage("login-message", error.message, true);

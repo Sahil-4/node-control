@@ -60,6 +60,13 @@ app.use('/api/system/shortcuts', shortcutsRoutes);
 app.use('/api/tunnel', tunnelRoutes);
 app.use('/api/sessions', sessionsRoutes);
 
+const VALID_PAGES = new Set(['monitor', 'notes', 'files', 'system', 'clipboard']);
+const landingPage = VALID_PAGES.has(process.env.LANDING_PAGE) ? process.env.LANDING_PAGE : 'monitor';
+
+app.get('/api/config', (_req, res) => {
+  res.json({ landingPage: `${landingPage}.html` });
+});
+
 app.get('/', (req, res) => {
   res.redirect('/login.html');
 });
