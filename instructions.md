@@ -1,430 +1,308 @@
-# 📌 MASTER PROMPT — *NodeControl*
+# NodeControl — Project Reference
 
-## 1. Objective
+## Overview
 
-Build a **local-first Progressive Web App (PWA)** named **NodeControl**.
-
-It must function as a **personal control panel** that provides:
-
-* Notes management (CRUD + search)
-* File management (upload/download/delete + filter)
-* Controlled system utilities (predefined commands only)
-
-The application is intended for:
-
-* Local network usage
-* Occasional exposure via tunneling (e.g., ngrok)
+NodeControl is a **personal control panel** PWA built with Node.js/Express and plain HTML/CSS/JS (no frontend framework, no build step). It is designed for single-user, local-network use with optional internet exposure via cloudflared tunnels.
 
 ---
 
-## 2. Core Requirements
+## Tech Stack
 
-### Functional Features
-
-#### A. Authentication
-
-* Use **HTTP Basic Authentication (RFC 7617)**
-* Credentials must be stored **only on server via environment variables**
-* No database/session storage
-* Frontend stores Base64 credentials in `localStorage`
-
----
-
-#### B. Notes System
-
-* Create, read, update, delete notes
-* Persist notes in a **JSON file**
-* Each note:
-
-  ```json
-  {
-    "id": number,
-    "content": string,
-    "createdAt": timestamp
-  }
-  ```
-* Features:
-
-  * Full-text search (substring match)
-  * Copy-to-clipboard button
-  * Inline edit support
+| Layer         | Technology                                           |
+| ------------- | ---------------------------------------------------- |
+| Runtime       | Node.js                                              |
+| Server        | Express.js                                           |
+| Real-time     | Socket.io                                            |
+| Frontend      | Vanilla HTML / CSS / JS                              |
+| System info   | `systeminformation` package                          |
+| File transfer | `multer`                                             |
+| Tunneling     | `cloudflared` CLI (quick tunnels, no account needed) |
 
 ---
 
-#### C. File Management
-
-* Upload files
-* List files
-* Download files
-* Delete files
-* Filter files by name
-
-Storage:
-
-* Files stored in `/uploads`
-
----
-
-#### D. System Utilities (STRICTLY CONTROLLED)
-
-Provide execution of **predefined actions only**:
-
-| Action     | Behavior                              |
-| ---------- | ------------------------------------- |
-| HTOP       | Run in batch mode                     |
-| LS         | List directory                        |
-| PROCESSES  | Show running processes                |
-| SCREENSHOT | Capture screen and save to `/uploads` |
-| REBOOT     | Reboot system (guarded by env flag)   |
-
-Constraints:
-
-* No arbitrary command execution
-* Use whitelist mapping only
-* Sanitize inputs (especially directory paths)
-* Enforce execution timeout
-
----
-
-## 3. Architecture (MANDATORY)
-
-Follow strict layered architecture:
+## Project Structure
 
 ```
-API Layer (routes)
-   ↓
-Controllers
-   ↓
-Services
-   ↓
-Core (low-level utilities)
+NodeControl/
+  src/
+    server.js                   # HTTP server entry point
+    app.js                      # Express app, route mounting, startup dir creation
+    socket.handlers.js          # All socket.io event handlers
+
+    core/
+      socket.core.js            # Socket.io singleton (init / getIo)
+      file.core.js              # readJSON / writeJSON helpers
+
+    middleware/
+      auth.middleware.js        # Basic Auth validation, session touch, auth-fail logging
+
+    routes/
+      auth.routes.js            # GET /api/auth/verify
+      notes.routes.js           # CRUD /api/notes
+      files.routes.js           # Upload/list/delete /api/files
+      system.routes.js          # POST /api/system, GET /api/system/read, /api/system/scope
+      clipboard.routes.js       # GET/POST /api/clipboard
+      share.routes.js           # POST /api/share, GET /api/share/:token
+      shortcuts.routes.js       # CRUD /api/system/shortcuts
+      tunnel.routes.js          # POST/GET /api/tunnel/start|stop|status
+      sessions.routes.js        # GET /api/sessions
+
+    controllers/
+      auth.controller.js
+      notes.controller.js
+      files.controller.js
+      system.controller.js      # executeAction, readFile, getScope
+      sessions.controller.js
+
+    services/
+      notes.service.js          # Notes CRUD on src/data/notes.json
+      files.service.js          # Lists/deletes from uploads/
+      system.service.js         # Whitelisted commands, readScopedFile, file guard
+      clipboard.service.js      # In-memory text store
+      share.service.js          # One-time download tokens with expiry
+      shortcuts.service.js      # Saved action shortcuts in src/data/shortcuts.json
+      tunnel.service.js         # Spawns/kills cloudflared process, parses URL
+      monitor.service.js        # CPU/RAM/disk/battery via systeminformation
+      session.service.js        # Persistent session store (logs/sessions.json)
+      logger.service.js         # Append-only action log (logs/actions.log)
+
+    data/
+      notes.json                # Persisted notes
+      shortcuts.json            # Persisted action shortcuts
+
+  public/
+    login.html
+    monitor.html
+    system.html
+    notes.html
+    files.html
+    clipboard.html
+    app.js                      # All frontend logic (one file, page-detected via data-page)
+    styles.css
+    manifest.json
+    sw.js
+
+  uploads/                      # User-uploaded files
+  scope/                        # User-managed symlinks for file reader access
+  logs/
+    actions.log                 # Append-only action audit log
+    sessions.log                # Append-only session audit log (NEW/RETURN events)
+    sessions.json               # Persistent session store (survives restarts)
 ```
 
 ---
 
-### Folder Structure
-
-```
-src/
-  app.js
-  server.js
-
-  routes/
-    notes.routes.js
-    files.routes.js
-    system.routes.js
-    auth.routes.js
-
-  controllers/
-    notes.controller.js
-    files.controller.js
-    system.controller.js
-
-  services/
-    notes.service.js
-    files.service.js
-    system.service.js
-
-  core/
-    file.core.js
-
-  middleware/
-    auth.middleware.js
-
-  data/
-    notes.json
-
-public/
-  login.html
-  notes.html
-  files.html
-  system.html
-  styles.css
-  app.js
-  manifest.json
-  sw.js
-
-uploads/
-```
-
----
-
-## 4. Backend Specifications
-
-### Framework
-
-* Use **Express.js**
-
----
-
-### Middleware
-
-#### Basic Auth
-
-* Parse `Authorization` header
-* Validate against:
-
-  ```
-  process.env.ADMIN_USER
-  process.env.ADMIN_PASS
-  ```
-* Reject unauthorized requests with `401`
-
----
-
-### Core Layer
-
-#### file.core.js
-
-* `readJSON(path)`
-* `writeJSON(path, data)`
-
-Use synchronous filesystem APIs for simplicity.
-
----
-
-### Services Layer
-
-#### Notes Service
-
-* getNotes
-* createNote
-* updateNote
-* deleteNote
-
-#### Files Service
-
-* listFiles
-* deleteFile
-
-#### System Service
-
-* Use `child_process.exec`
-* Wrap in promise with timeout
-* Define **whitelisted actions only**
-
-Example mapping:
-
-```js
-{
-  HTOP: () => exec('htop -b -n 1'),
-  LS: (dir) => safeExec(dir),
-  PROCESSES: () => exec('ps aux'),
-  SCREENSHOT: () => exec('import -window root file.png'),
-  REBOOT: guarded
-}
-```
-
----
-
-### Controllers
-
-* Handle request/response only
-* No business logic
-
----
-
-### Routes
-
-* `/api/notes`
-* `/api/files`
-* `/api/system`
-
-All routes must:
-
-* Use Basic Auth middleware
-
----
-
-### Static Serving
-
-Must include:
-
-```js
-app.use('/uploads', express.static('uploads'));
-app.use(express.static('public'));
-```
-
----
-
-## 5. Frontend (PWA)
-
-### Pages
-
-| Page        | Purpose          |
-| ----------- | ---------------- |
-| login.html  | credential input |
-| notes.html  | notes CRUD       |
-| files.html  | file management  |
-| system.html | system commands  |
-
----
-
-### UI Constraints
-
-* Minimal, clean, no frameworks
-* Vanilla JS only
-* Functional over aesthetic
-
----
-
-### Features
-
-#### Notes Page
-
-* Search input (client-side filtering)
-* Add note
-* Edit note inline
-* Delete note
-* Copy button
-
----
-
-#### Files Page
-
-* Upload input
-* File list
-* Download link
-* Delete button
-* Filename filter
-
----
-
-#### System Page
-
-* Dropdown of allowed actions
-* Optional input (for LS)
-* Output display (`<pre>`)
-
----
-
-### Auth Handling
-
-Store credentials:
-
-```js
-localStorage.setItem('auth', btoa(user + ':' + pass));
-```
-
-Attach to every request:
-
-```js
-Authorization: Basic <base64>
-```
-
----
-
-## 6. PWA Requirements
-
-### manifest.json
-
-* name: NodeControl
-* display: standalone
-* start_url: /login.html
-
----
-
-### Service Worker
-
-* Cache:
-
-  * HTML pages
-  * basic assets
-* Enable offline access (basic)
-
----
-
-## 7. Security Constraints (STRICT)
-
-### MUST IMPLEMENT
-
-* No arbitrary command execution
-* Whitelist-only system actions
-* Path sanitization (reject `..`)
-* Execution timeout for shell commands
-* Reboot behind env flag:
-
-  ```
-  ALLOW_REBOOT=false
-  ```
-
----
-
-### SHOULD IMPLEMENT
-
-* Run server as non-root user
-* Use HTTPS when exposed (ngrok)
-* Add basic error handling for filesystem
-
----
-
-## 8. Environment Variables
+## Environment Variables
 
 ```
 ADMIN_USER=admin
 ADMIN_PASS=securepassword
 ALLOW_REBOOT=false
 PORT=3000
+HOST=0.0.0.0
+
+# ALLOWED_SCOPE=/home/user        Restricts LS and Read File to this directory.
+#                                  Defaults to the project root.
+# FILE_GUARD=false                 Set to false to disable sensitive filename blocking.
+#                                  Enabled by default. Blocks: passwd, shadow, .env,
+#                                  secret, credential, config, private_key, id_rsa,
+#                                  and extensions .key .pem .p12 .pfx .crt .cer .cert
+# MONITOR_INTERVAL_MS=2000        Monitor push interval in ms. Clamped 500–60000.
+# LANDING_PAGE=monitor            Page shown after login.
+#                                  Options: monitor, notes, files, system, clipboard
 ```
 
 ---
 
-## 9. Assumptions
+## Authentication
 
-* OS: Linux
-* GUI available for screenshot (`import` or `scrot`)
-* Single-user environment
-* Low concurrency
-
----
-
-## 10. Deliverables
-
-The generated output must include:
-
-* Full project structure
-* All backend files
-* All frontend files
-* Working API endpoints
-* Minimal but usable UI
-* PWA support
-* Secure system command execution
+- HTTP Basic Auth on every API request
+- Frontend stores `btoa(user:pass)` in `localStorage`, sends as `Authorization: Basic <token>`
+- On every successful auth, `session.service.js` records the device (IP, User-Agent, Accept-Language, X-Forwarded-For)
+- Auth failures are logged to `logs/actions.log`
+- No sessions/JWTs — stateless per request
 
 ---
 
-## 11. Non-Goals (DO NOT IMPLEMENT)
+## Pages & Navigation
 
-* No database (only JSON)
-* No JWT/auth frameworks
-* No UI frameworks (React, Vue, etc.)
-* No arbitrary shell execution
-* No multi-user support
+Nav order (consistent across all pages): **Monitor → System → Notes → Files → Clipboard → Logout**
 
----
+| Page      | Route             | Purpose                                  |
+| --------- | ----------------- | ---------------------------------------- |
+| Monitor   | `/monitor.html`   | Live CPU / RAM / disk / battery stats    |
+| System    | `/system.html`    | Run actions via dropdown                 |
+| Notes     | `/notes.html`     | CRUD notes with search                   |
+| Files     | `/files.html`     | Upload / download / delete / share files |
+| Clipboard | `/clipboard.html` | Real-time shared clipboard               |
 
-## 12. Quality Expectations
-
-* Clean separation of concerns
-* Readable, maintainable code
-* No duplicated logic
-* Defensive programming for filesystem + commands
+After login, redirects to `LANDING_PAGE` (default: `monitor.html`) fetched from `/api/config`.
 
 ---
 
-## 13. Key Concepts (Glossary)
+## Features
 
-* **Basic Auth**: HTTP authentication using Base64 encoded credentials
-* **PWA**: Installable web app with offline capabilities
-* **exec (Node.js)**: Runs shell command in a subprocess
-* **Whitelist**: Explicitly allowed operations only
-* **Separation of concerns**: Dividing responsibilities across layers
+### Monitor
+
+- Real-time push via Socket.io (`monitor:start` → `monitor:stats` events)
+- Stats: CPU %, RAM used/total, per-disk usage, battery % and charging status (shown only if present)
+- Refresh button sends `monitor:refresh` for an immediate stats push
+- Update interval configurable via `MONITOR_INTERVAL_MS`
+- Status bar displays actual interval received from server via `monitor:config` event
+
+### System Actions
+
+All actions are in a single dropdown with optgroups. No arbitrary shell execution.
+
+| Optgroup  | Action        | Notes                                              |
+| --------- | ------------- | -------------------------------------------------- |
+| System    | HTOP          | `top -b -n 1`, streamed                            |
+| System    | LS            | `ls -la <dir>`, input: directory path within scope |
+| System    | PROCESSES     | `ps aux`, streamed                                 |
+| System    | SCREENSHOT    | Saves PNG to `uploads/`, uses `import` or `scrot`  |
+| System    | REBOOT        | Requires `ALLOW_REBOOT=true`                       |
+| Files     | Read File     | Reads text file or lists directory within scope    |
+| Tunnel    | Start Tunnel  | Starts cloudflared quick tunnel, shows URL + QR    |
+| Tunnel    | Stop Tunnel   | Kills cloudflared process                          |
+| Tunnel    | Tunnel Status | Shows running URL or "not running"                 |
+| Shortcuts | (saved)       | User-saved action+input pairs, auto-fill on select |
+| Admin     | Sessions      | Shows full session history in output pane          |
+
+- Streaming actions (HTOP, LS, etc.) use `socket.emit('system:run')` → stdout/stderr pushed live
+- Non-streaming actions (READ*FILE, TUNNEL*\*, SESSIONS) use REST API calls
+- **Save as Shortcut**: saves current action + input with a name to the Shortcuts optgroup
+- **Delete Shortcut**: appears when a shortcut is selected; deletes it on click
+
+### Read File / Scope
+
+- `GET /api/system/read?path=<path>` — reads text files or lists directories within `ALLOWED_SCOPE`
+- Scope defaults to project root; override with `ALLOWED_SCOPE`
+- `scope/` directory: place symlinks here to make external paths accessible via Read File without them appearing in the Files page
+- File guard (enabled by default): blocks access to sensitive filenames regardless of scope
+- `logs/` is permanently inaccessible from Read File (hardcoded, not affected by FILE_GUARD)
+
+### Files
+
+- Upload: `POST /api/files` (multipart)
+- List: `GET /api/files`
+- Download: direct link via `/uploads/<name>`
+- Delete: `DELETE /api/files/:name`
+- View: Markdown (via marked CDN) and HTML files viewable in a modal
+- Preview: images, audio, video rendered inline
+- One-time share link: generates a token via `POST /api/share`; consumed once at `GET /api/share/:token`; includes configurable expiry and QR code
+
+### Clipboard
+
+- Real-time shared text across all connected clients
+- Socket.io events: `clipboard:update` (write) → `clipboard:sync` (broadcast)
+- Copy button with `navigator.clipboard` + `execCommand` fallback for HTTP/LAN
+- QR code generation for clipboard text
+
+### Tunnel
+
+- Spawns `cloudflared tunnel --url http://localhost:PORT` as a child process
+- Parses `*.trycloudflare.com` URL from stdout
+- No account or config needed
+- Active tunnel URL shown in a compact indicator with Copy and QR buttons
+
+### Sessions
+
+- Every authenticated request updates or creates a session record
+- Keyed by SHA1(IP + User-Agent) — same browser/device always maps to the same record
+- Active = seen within last 30 minutes (shown with `●`); older = `○`
+- Session data persisted to `logs/sessions.json` — survives server restarts
+- `logs/sessions.log` — append-only audit trail: `[NEW]` lines include full UA, forwarded IP, language; `[RETURN]` lines include IP and request count (rate-limited to once/min per session)
+- View all sessions via the **Sessions** action in the System dropdown
+
+### Action Logging (`logs/actions.log`)
+
+Every significant action is logged with timestamp, event type, and IP:
+
+| Event                          | Trigger                            |
+| ------------------------------ | ---------------------------------- |
+| `AUTH_FAIL`                    | Invalid credentials                |
+| `SYSTEM_RUN`                   | Socket system:run (action + input) |
+| `READ_FILE` / `READ_FILE_ERR`  | File read via REST                 |
+| `TUNNEL_START` / `TUNNEL_STOP` | Tunnel start/stop                  |
+| `FILE_UPLOAD` / `FILE_DELETE`  | File operations                    |
 
 ---
 
-## 14. Final Instruction
+## Real-time (Socket.io)
 
-Generate a **fully working, production-ready local utility application** named **NodeControl** that strictly follows all architectural, security, and functional constraints above.
+| Event (client → server) | Description                       |
+| ----------------------- | --------------------------------- |
+| `monitor:start`         | Begin stats stream                |
+| `monitor:stop`          | Stop stats stream                 |
+| `monitor:refresh`       | Push immediate stats update       |
+| `system:run`            | Run a whitelisted streamed action |
+| `clipboard:update`      | Write to shared clipboard         |
 
-Do not skip layers. Do not simplify structure. Do not introduce additional frameworks.
+| Event (server → client) | Description                             |
+| ----------------------- | --------------------------------------- |
+| `monitor:config`        | Sends `{ intervalMs }` on stream start  |
+| `monitor:stats`         | Periodic stats payload                  |
+| `system:output`         | Streamed stdout/stderr chunk            |
+| `system:done`           | Command finished with exit code         |
+| `system:error`          | Command error or timeout                |
+| `clipboard:sync`        | Broadcast clipboard text to all clients |
 
 ---
+
+## Security
+
+- Whitelist-only command execution — no arbitrary shell
+- Path traversal blocked: `path.resolve` + `startsWith(projectRoot)` check before any FS access
+- File guard blocks sensitive filenames by keyword and extension (toggleable via `FILE_GUARD=false`)
+- `logs/` directory is hardcoded as inaccessible from Read File regardless of guards
+- Execution timeout: 5 seconds for all shell commands
+- Reboot gated behind `ALLOW_REBOOT=true`
+- One-time share links expire and are consumed on first download
+
+---
+
+## API Routes Summary
+
+```
+GET  /api/config                    → { landingPage }  (public, no auth)
+GET  /api/auth/verify               → { ok, user }
+
+GET  /api/notes                     → notes[]
+POST /api/notes                     → created note
+PUT  /api/notes/:id                 → updated note
+DELETE /api/notes/:id
+
+GET  /api/files                     → files[]
+POST /api/files                     → uploaded file info
+DELETE /api/files/:name
+
+POST /api/system                    → { output, meta }  (non-streaming actions)
+GET  /api/system/read?path=         → { path, content, size, ext, isDirectory? }
+GET  /api/system/scope              → { scope }
+
+GET  /api/system/shortcuts          → shortcuts[]
+POST /api/system/shortcuts          → created shortcut
+DELETE /api/system/shortcuts/:id
+
+POST /api/share                     → { url, expiresAt }
+GET  /api/share/:token              → file download (one-time, no auth)
+
+GET  /api/clipboard                 → { text }
+POST /api/clipboard                 → sets text
+
+GET  /api/tunnel/status             → { running, url, startedAt }
+POST /api/tunnel/start              → { url, startedAt }
+POST /api/tunnel/stop               → 204
+
+GET  /api/sessions                  → session[]
+```
+
+---
+
+## Non-Goals
+
+- No database (JSON files only)
+- No JWT or session cookies
+- No UI frameworks
+- No multi-user support
+- No arbitrary shell execution
