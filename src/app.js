@@ -6,6 +6,10 @@ const authRoutes = require('./routes/auth.routes');
 const notesRoutes = require('./routes/notes.routes');
 const filesRoutes = require('./routes/files.routes');
 const systemRoutes = require('./routes/system.routes');
+const clipboardRoutes = require('./routes/clipboard.routes');
+const shareRoutes = require('./routes/share.routes');
+const shortcutsRoutes = require('./routes/shortcuts.routes');
+const tunnelRoutes = require('./routes/tunnel.routes');
 
 const app = express();
 const rootDir = path.resolve(__dirname, '..');
@@ -39,6 +43,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/clipboard', clipboardRoutes);
+app.use('/api/share', shareRoutes);
+app.use('/api/system/shortcuts', shortcutsRoutes);
+app.use('/api/tunnel', tunnelRoutes);
 
 app.get('/', (req, res) => {
   res.redirect('/login.html');

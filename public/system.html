@@ -19,10 +19,13 @@
           <a href="/notes.html">Notes</a>
           <a href="/files.html">Files</a>
           <a class="active" href="/system.html">System</a>
+          <a href="/monitor.html">Monitor</a>
+          <a href="/clipboard.html">Clipboard</a>
           <button id="logout-button" type="button" class="secondary">Logout</button>
         </nav>
       </header>
 
+      <!-- Run command -->
       <section class="panel">
         <form id="system-form" class="stack">
           <label>
@@ -39,7 +42,10 @@
             Optional input
             <input id="system-input" type="text" placeholder="Used for LS, e.g. uploads" />
           </label>
-          <button type="submit">Run Action</button>
+          <div class="actions">
+            <button type="submit">Run Action</button>
+            <button type="button" id="save-shortcut" class="secondary">Save as Shortcut</button>
+          </div>
         </form>
         <p id="system-message" class="message" aria-live="polite"></p>
       </section>
@@ -47,7 +53,34 @@
       <section class="panel">
         <pre id="system-output" class="output">Run an action to see output here.</pre>
       </section>
+
+      <!-- Saved shortcuts -->
+      <section class="panel">
+        <h2 class="section-title">Saved Shortcuts</h2>
+        <div id="shortcuts-list" class="list"></div>
+      </section>
+
+      <!-- Tunnel control -->
+      <section class="panel">
+        <h2 class="section-title">Tunnel (cloudflared)</h2>
+        <div id="tunnel-status" class="message">Loading...</div>
+        <div class="actions" style="margin-top:0.5rem;">
+          <button type="button" id="tunnel-start">Start Tunnel</button>
+          <button type="button" id="tunnel-stop" class="secondary">Stop Tunnel</button>
+        </div>
+        <div id="tunnel-url-row" class="hidden" style="margin-top:0.75rem;">
+          <input id="tunnel-url" type="text" readonly style="width:100%;margin-bottom:0.5rem;" />
+          <div class="actions">
+            <button type="button" id="tunnel-copy">Copy URL</button>
+            <button type="button" id="tunnel-qr" class="secondary">QR Code</button>
+          </div>
+          <div id="tunnel-qr-container" class="qr-container" style="margin-top:0.75rem;"></div>
+        </div>
+      </section>
     </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>
