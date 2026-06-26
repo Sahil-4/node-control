@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#08111f" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>NodeControl | Clipboard</title>
+  </head>
+  <body data-page="clipboard">
+    <main class="container">
+      <header class="topbar">
+        <div>
+          <h1>NodeControl</h1>
+          <p class="muted">Clipboard</p>
+        </div>
+        <nav class="nav">
+          <a href="/notes.html">Notes</a>
+          <a href="/files.html">Files</a>
+          <a href="/system.html">System</a>
+          <a href="/monitor.html">Monitor</a>
+          <a class="active" href="/clipboard.html">Clipboard</a>
+          <button id="logout-button" type="button" class="secondary">Logout</button>
+        </nav>
+      </header>
+
+      <section class="panel">
+        <p id="clipboard-status" class="message" aria-live="polite">Connecting...</p>
+        <textarea id="clipboard-text" rows="12" placeholder="Type here — syncs across all connected devices in real time..."></textarea>
+        <div class="actions" style="margin-top: 0.5rem;">
+          <button type="button" id="clipboard-copy">Copy</button>
+          <button type="button" id="clipboard-clear" class="secondary">Clear</button>
+          <button type="button" id="clipboard-qr" class="secondary">QR Code</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- QR modal -->
+    <div id="qr-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="QR Code">
+      <div class="modal-box">
+        <div class="modal-header">
+          <span>QR Code</span>
+          <button type="button" id="qr-modal-close" class="secondary">Close</button>
+        </div>
+        <div id="qr-container" class="qr-container"></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
