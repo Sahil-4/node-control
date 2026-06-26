@@ -1,9 +1,33 @@
 {
+  "id": "/",
   "name": "NodeControl",
   "short_name": "NodeControl",
+  "description": "Local-first personal control panel — monitor, notes, files, and system utilities.",
+  "lang": "en",
   "display": "standalone",
+  "orientation": "any",
   "start_url": "/login.html",
+  "scope": "/",
   "background_color": "#08111f",
   "theme_color": "#08111f",
-  "icons": []
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
 }
