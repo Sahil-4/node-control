@@ -26,7 +26,10 @@
       </header>
 
       <section class="panel">
-        <p id="monitor-status" class="message" aria-live="polite">Connecting...</p>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+          <p id="monitor-status" class="message" style="margin:0;" aria-live="polite">Connecting...</p>
+          <button type="button" id="monitor-refresh" class="secondary" style="min-height:36px;padding:0.35rem 0.75rem;">Refresh</button>
+        </div>
         <div class="stat-grid">
           <div class="stat-card">
             <div class="stat-label">CPU</div>
@@ -37,6 +40,12 @@
             <div class="stat-label">RAM</div>
             <div class="stat-value" id="ram-value">-- / --</div>
             <div class="stat-bar-track"><div class="stat-bar" id="ram-bar"></div></div>
+          </div>
+          <div class="stat-card" id="battery-card" style="display:none;">
+            <div class="stat-label">Battery</div>
+            <div class="stat-value" id="battery-value">--%</div>
+            <div class="stat-bar-track"><div class="stat-bar" id="battery-bar"></div></div>
+            <div class="muted" id="battery-status" style="font-size:0.8rem;margin-top:0.4rem;"></div>
           </div>
         </div>
       </section>

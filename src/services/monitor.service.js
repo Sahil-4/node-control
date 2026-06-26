@@ -1,13 +1,14 @@
 const si = require('systeminformation');
 
-const INTERVAL_MS = 2000;
+const INTERVAL_MS = Math.min(60000, Math.max(500, parseInt(process.env.MONITOR_INTERVAL_MS, 10) || 2000));
 const _timers = new Map();
 
 async function getStats() {
-  const [cpuLoad, mem, disk] = await Promise.all([
+  const [cpuLoad, mem, disk, battery] = await Promise.all([
     si.currentLoad(),
     si.mem(),
-    si.fsSize()
+    si.fsSize(),
+    si.battery()
   ]);
 
   return {
@@ -23,7 +24,12 @@ async function getStats() {
       mount: d.mount,
       used: d.used,
       size: d.size
-    }))
+    })),
+    battery: battery.hasBattery ? {
+      percent: battery.percent,
+      isCharging: battery.isCharging,
+      timeRemaining: battery.timeRemaining
+    } : null
   };
 }
 
@@ -52,4 +58,4 @@ function stopStream(socket) {
   }
 }
 
-module.exports = { getStats, startStream, stopStream };
+module.exports = { getStats, startStream, stopStream, intervalMs: INTERVAL_MS };
