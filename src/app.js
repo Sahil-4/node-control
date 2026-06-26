@@ -10,12 +10,15 @@ const clipboardRoutes = require('./routes/clipboard.routes');
 const shareRoutes = require('./routes/share.routes');
 const shortcutsRoutes = require('./routes/shortcuts.routes');
 const tunnelRoutes = require('./routes/tunnel.routes');
+const sessionsRoutes = require('./routes/sessions.routes');
 
 const app = express();
 const rootDir = path.resolve(__dirname, '..');
 const dataDir = path.join(__dirname, 'data');
 const notesFile = path.join(dataDir, 'notes.json');
 const uploadsDir = path.join(rootDir, 'uploads');
+const scopeDir = path.join(rootDir, 'scope');
+const logsDir = path.join(rootDir, 'logs');
 
 function ensureStorage() {
   if (!fs.existsSync(dataDir)) {
@@ -24,6 +27,14 @@ function ensureStorage() {
 
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  if (!fs.existsSync(scopeDir)) {
+    fs.mkdirSync(scopeDir, { recursive: true });
+  }
+
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
   }
 
   if (!fs.existsSync(notesFile)) {
@@ -47,6 +58,7 @@ app.use('/api/clipboard', clipboardRoutes);
 app.use('/api/share', shareRoutes);
 app.use('/api/system/shortcuts', shortcutsRoutes);
 app.use('/api/tunnel', tunnelRoutes);
+app.use('/api/sessions', sessionsRoutes);
 
 app.get('/', (req, res) => {
   res.redirect('/login.html');

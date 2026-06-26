@@ -31,55 +31,71 @@
           <label>
             Action
             <select id="system-action" required>
-              <option value="HTOP">HTOP</option>
-              <option value="LS">LS</option>
-              <option value="PROCESSES">PROCESSES</option>
-              <option value="SCREENSHOT">SCREENSHOT</option>
-              <option value="REBOOT">REBOOT</option>
+              <optgroup label="System">
+                <option value="HTOP">HTOP</option>
+                <option value="LS">LS</option>
+                <option value="PROCESSES">PROCESSES</option>
+                <option value="SCREENSHOT">SCREENSHOT</option>
+                <option value="REBOOT">REBOOT</option>
+              </optgroup>
+              <optgroup label="Files">
+                <option value="READ_FILE">Read File</option>
+              </optgroup>
+              <optgroup label="Tunnel">
+                <option value="TUNNEL_START">Start Tunnel</option>
+                <option value="TUNNEL_STOP">Stop Tunnel</option>
+                <option value="TUNNEL_STATUS">Tunnel Status</option>
+              </optgroup>
+              <optgroup id="shortcuts-optgroup" label="Shortcuts"></optgroup>
+              <optgroup label="Admin">
+                <option value="SESSIONS">Sessions</option>
+              </optgroup>
             </select>
           </label>
-          <label>
-            Optional input
-            <input id="system-input" type="text" placeholder="Used for LS, e.g. uploads" />
+          <label id="input-label">
+            Input
+            <input id="system-input" type="text" placeholder="" />
           </label>
+          <p id="system-scope-hint" class="muted hidden" style="font-size:0.8rem;margin:0;"></p>
           <div class="actions">
-            <button type="submit">Run Action</button>
+            <button type="submit">Run</button>
             <button type="button" id="save-shortcut" class="secondary">Save as Shortcut</button>
+            <button type="button" id="delete-shortcut" class="danger hidden">Delete Shortcut</button>
           </div>
         </form>
         <p id="system-message" class="message" aria-live="polite"></p>
-      </section>
 
-      <section class="panel">
-        <pre id="system-output" class="output">Run an action to see output here.</pre>
-      </section>
-
-      <!-- Saved shortcuts -->
-      <section class="panel">
-        <h2 class="section-title">Saved Shortcuts</h2>
-        <div id="shortcuts-list" class="list"></div>
-      </section>
-
-      <!-- Tunnel control -->
-      <section class="panel">
-        <h2 class="section-title">Tunnel (cloudflared)</h2>
-        <div id="tunnel-status" class="message">Loading...</div>
-        <div class="actions" style="margin-top:0.5rem;">
-          <button type="button" id="tunnel-start">Start Tunnel</button>
-          <button type="button" id="tunnel-stop" class="secondary">Stop Tunnel</button>
-        </div>
-        <div id="tunnel-url-row" class="hidden" style="margin-top:0.75rem;">
-          <input id="tunnel-url" type="text" readonly style="width:100%;margin-bottom:0.5rem;" />
-          <div class="actions">
+        <!-- Tunnel active indicator -->
+        <div id="tunnel-active" class="hidden" style="margin-top:0.75rem;padding:0.65rem;border:1px solid var(--panel-border);border-radius:6px;">
+          <div class="meta" style="margin-bottom:0.5rem;">Tunnel Active</div>
+          <input id="tunnel-active-url" type="text" readonly style="margin-bottom:0.5rem;" />
+          <div class="actions" style="margin-top:0;">
             <button type="button" id="tunnel-copy">Copy URL</button>
             <button type="button" id="tunnel-qr" class="secondary">QR Code</button>
           </div>
           <div id="tunnel-qr-container" class="qr-container" style="margin-top:0.75rem;"></div>
         </div>
       </section>
+
+      <section class="panel">
+        <pre id="system-output" class="output">Run an action to see output here.</pre>
+      </section>
+
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+    <!-- QR modal -->
+    <div id="qr-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="QR Code">
+      <div class="modal-box">
+        <div class="modal-header">
+          <span>QR Code</span>
+          <button type="button" id="qr-modal-close" class="secondary">Close</button>
+        </div>
+        <div id="qr-container" class="qr-container"></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/app.js"></script>
   </body>

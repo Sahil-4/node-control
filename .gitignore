@@ -8,6 +8,14 @@ node_modules/
 uploads/*
 !uploads/.gitkeep
 
+# Scope symlinks (keep directory via .gitkeep, ignore user symlinks)
+scope/*
+!scope/.gitkeep
+
+# Action logs (security-sensitive)
+logs/*
+!logs/.gitkeep
+
 # Runtime data
 src/data/notes.json
 

@@ -488,18 +488,84 @@
 
   // ── System ───────────────────────────────────────────────────────────────
 
+  // ── Shared helpers ────────────────────────────────────────────────────────
+
+  function parseUA(ua) {
+    if (!ua) return "Unknown Device";
+    if (/curl/i.test(ua)) return "curl";
+    if (/python/i.test(ua)) return "Python";
+    const browser =
+      /Edg\//.test(ua)     ? "Edge"    :
+      /OPR\//.test(ua)     ? "Opera"   :
+      /Firefox\//.test(ua) ? "Firefox" :
+      /Chrome\//.test(ua)  ? "Chrome"  :
+      /Safari\//.test(ua)  ? "Safari"  : "Browser";
+    const os =
+      /Windows/.test(ua)          ? "Windows" :
+      /Macintosh|Mac OS X/.test(ua) ? "macOS"   :
+      /Android/.test(ua)          ? "Android" :
+      /iPhone|iPad/.test(ua)      ? "iOS"     :
+      /Linux/.test(ua)            ? "Linux"   : "";
+    return os ? `${browser} on ${os}` : browser;
+  }
+
+  function timeAgo(ts) {
+    const diff = Date.now() - ts;
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
+  }
+
+  function formatSessions(sessions) {
+    if (!sessions.length) return "No sessions recorded.";
+    const activeCount = sessions.filter(s => s.active).length;
+    const out = [`Sessions: ${sessions.length} total (${activeCount} active within 30 min)\n${"─".repeat(52)}`];
+    for (const s of sessions) {
+      const dot = s.active ? "●" : "○";
+      const ip = s.forwardedFor ? `${s.ip} (fwd: ${s.forwardedFor})` : s.ip;
+      out.push(`\n${dot} [${s.id}] ${parseUA(s.userAgent)}`);
+      out.push(`  IP:    ${ip}`);
+      if (s.acceptLanguage) out.push(`  Lang:  ${s.acceptLanguage}`);
+      out.push(`  First: ${new Date(s.firstSeen).toLocaleString()}`);
+      out.push(`  Last:  ${new Date(s.lastSeen).toLocaleString()} (${timeAgo(s.lastSeen)})`);
+      out.push(`  Reqs:  ${s.requestCount}`);
+    }
+    return out.join("\n");
+  }
+
+  const ACTION_PLACEHOLDERS = {
+    LS:           "Directory path, e.g. uploads",
+    READ_FILE:    "File path, e.g. src/server.js or scope/link/file.txt",
+    TUNNEL_START: "Extra cloudflared options (optional)",
+    SESSIONS: "",
+    HTOP: "", PROCESSES: "", SCREENSHOT: "", REBOOT: "",
+    TUNNEL_STOP: "", TUNNEL_STATUS: "",
+  };
+
   async function initSystemPage() {
     if (!(await requireAuth())) return;
 
     attachLogout();
 
-    const form = document.getElementById("system-form");
-    const actionSelect = document.getElementById("system-action");
-    const inputField = document.getElementById("system-input");
-    const output = document.getElementById("system-output");
-    const socket = io();
+    const form          = document.getElementById("system-form");
+    const actionSelect  = document.getElementById("system-action");
+    const inputField    = document.getElementById("system-input");
+    const inputLabel    = document.getElementById("input-label");
+    const scopeHint     = document.getElementById("system-scope-hint");
+    const output        = document.getElementById("system-output");
+    const shortcutsOptgroup = document.getElementById("shortcuts-optgroup");
+    const deleteShortcutBtn = document.getElementById("delete-shortcut");
+    const tunnelActive  = document.getElementById("tunnel-active");
+    const tunnelUrlEl   = document.getElementById("tunnel-active-url");
+    const socket        = io();
 
-    // Streaming output
+    let _shortcuts = [];
+    let _activeShortcut = null;
+
+    // ── Socket streaming ──────────────────────────────────────────────────
     socket.on("system:output", ({ chunk }) => {
       output.textContent += chunk;
       output.scrollTop = output.scrollHeight;
@@ -511,25 +577,136 @@
       setMessage("system-message", message, true);
     });
 
-    form.addEventListener("submit", function (event) {
+    // ── Helpers ───────────────────────────────────────────────────────────
+    function showTunnelActive(url) {
+      tunnelUrlEl.value = url;
+      tunnelActive.classList.remove("hidden");
+    }
+
+    function hideTunnelActive() {
+      tunnelActive.classList.add("hidden");
+      tunnelUrlEl.value = "";
+    }
+
+    function updateInputHint(action) {
+      const placeholder = ACTION_PLACEHOLDERS[action] ?? "";
+      inputField.placeholder = placeholder;
+      const needsInput = ["LS", "READ_FILE", "TUNNEL_START"].includes(action);
+      inputLabel.classList.toggle("hidden", !needsInput && !placeholder);
+      if (action === "READ_FILE") {
+        apiFetch("/api/system/scope").then(({ scope }) => {
+          scopeHint.textContent = `Scope: ${scope} — place symlinks in scope/ for external access`;
+          scopeHint.classList.remove("hidden");
+        }).catch(() => {});
+      } else {
+        scopeHint.classList.add("hidden");
+      }
+    }
+
+    // ── Dropdown change ───────────────────────────────────────────────────
+    actionSelect.addEventListener("change", function () {
+      const val = actionSelect.value;
+      if (val.startsWith("__sc__")) {
+        const id = val.slice(6);
+        const sc = _shortcuts.find(s => s.id === id);
+        if (sc) {
+          _activeShortcut = sc;
+          inputField.value = sc.input || "";
+          updateInputHint(sc.action);
+          deleteShortcutBtn.classList.remove("hidden");
+        }
+      } else {
+        _activeShortcut = null;
+        updateInputHint(val);
+        deleteShortcutBtn.classList.add("hidden");
+      }
+    });
+
+    // ── Form submit ───────────────────────────────────────────────────────
+    form.addEventListener("submit", async function (event) {
       event.preventDefault();
       output.textContent = "";
       setMessage("system-message", "Running...");
-      socket.emit("system:run", {
-        action: actionSelect.value,
-        input: inputField.value,
-      });
+
+      const effectiveAction = _activeShortcut ? _activeShortcut.action : actionSelect.value;
+      const effectiveInput  = inputField.value.trim();
+
+      try {
+        if (effectiveAction === "READ_FILE") {
+          if (!effectiveInput) {
+            setMessage("system-message", "File path is required.", true);
+            return;
+          }
+          const result = await apiFetch(`/api/system/read?path=${encodeURIComponent(effectiveInput)}`);
+          output.textContent = result.content;
+          setMessage("system-message", result.isDirectory
+            ? `${result.path}/  [directory listing]`
+            : `${result.path} — ${result.size} bytes`);
+
+        } else if (effectiveAction === "TUNNEL_START") {
+          setMessage("system-message", "Starting tunnel — this may take ~10 seconds...");
+          const s = await apiFetch("/api/tunnel/start", { method: "POST" });
+          output.textContent = `Tunnel started.\nURL: ${s.url}\nStarted: ${formatDate(s.startedAt)}`;
+          setMessage("system-message", "Tunnel running.");
+          showTunnelActive(s.url);
+
+        } else if (effectiveAction === "TUNNEL_STOP") {
+          await apiFetch("/api/tunnel/stop", { method: "POST" });
+          output.textContent = "Tunnel stopped.";
+          setMessage("system-message", "Done.");
+          hideTunnelActive();
+
+        } else if (effectiveAction === "TUNNEL_STATUS") {
+          const s = await apiFetch("/api/tunnel/status");
+          if (s.running) {
+            output.textContent = `Running: ${s.url}\nStarted: ${formatDate(s.startedAt)}`;
+            showTunnelActive(s.url);
+          } else {
+            output.textContent = "Tunnel is not running.";
+            hideTunnelActive();
+          }
+          setMessage("system-message", "Done.");
+
+        } else if (effectiveAction === "SESSIONS") {
+          const sessions = await apiFetch("/api/sessions");
+          output.textContent = formatSessions(sessions);
+          setMessage("system-message", `${sessions.length} session${sessions.length !== 1 ? "s" : ""} found.`);
+
+        } else {
+          socket.emit("system:run", { action: effectiveAction, input: effectiveInput });
+        }
+      } catch (err) {
+        setMessage("system-message", err.message, true);
+      }
     });
 
-    // Save shortcut
+    // ── Tunnel URL copy / QR ──────────────────────────────────────────────
+    document.getElementById("tunnel-copy").addEventListener("click", async function () {
+      await copyText(tunnelUrlEl.value);
+      setMessage("system-message", "Tunnel URL copied.");
+    });
+
+    document.getElementById("tunnel-qr").addEventListener("click", function () {
+      showQr(tunnelUrlEl.value, "qr-container");
+      openModal("qr-modal");
+    });
+
+    document.getElementById("qr-modal-close").addEventListener("click", () => closeModal("qr-modal"));
+    document.getElementById("qr-modal").addEventListener("click", function (e) {
+      if (e.target === this) closeModal("qr-modal");
+    });
+
+    // ── Save shortcut ─────────────────────────────────────────────────────
     document.getElementById("save-shortcut").addEventListener("click", async function () {
       const name = prompt("Shortcut name:");
       if (!name) return;
+      const saveAction = _activeShortcut ? _activeShortcut.action : actionSelect.value;
+      const saveInput  = inputField.value.trim();
       try {
         await apiFetch("/api/system/shortcuts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, action: actionSelect.value, input: inputField.value }),
+          body: JSON.stringify({ name, action: saveAction, input: saveInput }),
         });
         setMessage("system-message", `Shortcut "${name}" saved.`);
         await loadShortcuts();
@@ -538,112 +715,38 @@
       }
     });
 
-    // Shortcuts list
-    const shortcutsList = document.getElementById("shortcuts-list");
-
+    // ── Shortcuts ─────────────────────────────────────────────────────────
     async function loadShortcuts() {
-      const shortcuts = await apiFetch("/api/system/shortcuts");
-      if (!shortcuts.length) {
-        shortcutsList.innerHTML = '<div class="empty">No shortcuts saved.</div>';
-        return;
-      }
-      shortcutsList.innerHTML = shortcuts.map((s) => `
-        <article class="card" data-shortcut-id="${s.id}">
-          <div class="meta">${escapeHtml(s.name)}</div>
-          <div class="muted" style="font-size:0.8rem;">${escapeHtml(s.action)}${s.input ? ` &bull; ${escapeHtml(s.input)}` : ""}</div>
-          <div class="actions" style="margin-top:0.5rem;">
-            <button type="button" data-shortcut-action="run">Run</button>
-            <button type="button" data-shortcut-action="delete" class="danger">Delete</button>
-          </div>
-        </article>
-      `).join("");
+      _shortcuts = await apiFetch("/api/system/shortcuts");
+      shortcutsOptgroup.innerHTML = _shortcuts.map(s =>
+        `<option value="__sc__${s.id}">${escapeHtml(s.name)}</option>`
+      ).join("");
     }
 
-    shortcutsList.addEventListener("click", async function (event) {
-      const button = event.target.closest("button[data-shortcut-action]");
-      if (!button) return;
-      const card = button.closest("[data-shortcut-id]");
-      const id = card.getAttribute("data-shortcut-id");
-      const shortcuts = await apiFetch("/api/system/shortcuts");
-      const shortcut = shortcuts.find((s) => s.id === id);
-      if (!shortcut) return;
-
-      if (button.getAttribute("data-shortcut-action") === "run") {
-        actionSelect.value = shortcut.action;
-        inputField.value = shortcut.input || "";
-        output.textContent = "";
-        setMessage("system-message", "Running...");
-        socket.emit("system:run", { action: shortcut.action, input: shortcut.input });
-      } else if (button.getAttribute("data-shortcut-action") === "delete") {
-        try {
-          await apiFetch(`/api/system/shortcuts/${id}`, { method: "DELETE" });
-          setMessage("system-message", "Shortcut deleted.");
-          await loadShortcuts();
-        } catch (err) {
-          setMessage("system-message", err.message, true);
-        }
-      }
-    });
-
-    // Tunnel
-    const tunnelStatusEl = document.getElementById("tunnel-status");
-    const tunnelUrlRow = document.getElementById("tunnel-url-row");
-    const tunnelUrlInput = document.getElementById("tunnel-url");
-
-    async function loadTunnelStatus() {
+    deleteShortcutBtn.addEventListener("click", async function () {
+      if (!_activeShortcut) return;
       try {
-        const s = await apiFetch("/api/tunnel/status");
-        if (s.running && s.url) {
-          tunnelStatusEl.textContent = `Running since ${formatDate(s.startedAt)}`;
-          tunnelStatusEl.classList.remove("status-danger");
-          tunnelUrlInput.value = s.url;
-          tunnelUrlRow.classList.remove("hidden");
-        } else {
-          tunnelStatusEl.textContent = "Not running";
-          tunnelUrlRow.classList.add("hidden");
-        }
+        await apiFetch(`/api/system/shortcuts/${_activeShortcut.id}`, { method: "DELETE" });
+        setMessage("system-message", `Shortcut "${_activeShortcut.name}" deleted.`);
+        _activeShortcut = null;
+        deleteShortcutBtn.classList.add("hidden");
+        actionSelect.value = actionSelect.options[0].value;
+        updateInputHint(actionSelect.value);
+        await loadShortcuts();
       } catch (err) {
-        tunnelStatusEl.textContent = err.message;
-        tunnelStatusEl.classList.add("status-danger");
-      }
-    }
-
-    document.getElementById("tunnel-start").addEventListener("click", async function () {
-      tunnelStatusEl.textContent = "Starting tunnel...";
-      tunnelUrlRow.classList.add("hidden");
-      try {
-        const s = await apiFetch("/api/tunnel/start", { method: "POST" });
-        tunnelUrlInput.value = s.url;
-        tunnelStatusEl.textContent = `Running since ${formatDate(s.startedAt)}`;
-        tunnelStatusEl.classList.remove("status-danger");
-        tunnelUrlRow.classList.remove("hidden");
-      } catch (err) {
-        tunnelStatusEl.textContent = err.message;
-        tunnelStatusEl.classList.add("status-danger");
+        setMessage("system-message", err.message, true);
       }
     });
 
-    document.getElementById("tunnel-stop").addEventListener("click", async function () {
-      try {
-        await apiFetch("/api/tunnel/stop", { method: "POST" });
-        tunnelStatusEl.textContent = "Not running";
-        tunnelUrlRow.classList.add("hidden");
-      } catch (err) {
-        tunnelStatusEl.textContent = err.message;
-        tunnelStatusEl.classList.add("status-danger");
-      }
-    });
+    // ── Init ──────────────────────────────────────────────────────────────
+    updateInputHint(actionSelect.value);
 
-    document.getElementById("tunnel-copy").addEventListener("click", async function () {
-      await copyText(tunnelUrlInput.value);
-      setMessage("system-message", "Tunnel URL copied.");
-    });
+    // Restore tunnel active state on page load
+    apiFetch("/api/tunnel/status").then(s => {
+      if (s.running && s.url) showTunnelActive(s.url);
+    }).catch(() => {});
 
-    document.getElementById("tunnel-qr").addEventListener("click", function () {
-      showQr(tunnelUrlInput.value, "tunnel-qr-container");
-    });
-
-    await Promise.all([loadShortcuts(), loadTunnelStatus()]);
+    await loadShortcuts();
   }
 
   // ── Clipboard ─────────────────────────────────────────────────────────────
@@ -719,16 +822,29 @@
     const socket = io();
 
     socket.on("connect", () => {
-      statusEl.textContent = "Live — updating every 2 seconds.";
+      statusEl.textContent = "Live — connecting...";
       statusEl.classList.remove("status-danger");
       socket.emit("monitor:start");
+    });
+    socket.on("monitor:config", ({ intervalMs }) => {
+      const secs = (intervalMs / 1000).toFixed(intervalMs % 1000 === 0 ? 0 : 1);
+      statusEl.textContent = `Live — updating every ${secs}s.`;
     });
     socket.on("disconnect", () => {
       statusEl.textContent = "Disconnected.";
       statusEl.classList.add("status-danger");
     });
 
-    socket.on("monitor:stats", ({ cpu, ram, disk }) => {
+    document.getElementById("monitor-refresh").addEventListener("click", function () {
+      socket.emit("monitor:refresh");
+    });
+
+    const batteryCard = document.getElementById("battery-card");
+    const batteryValue = document.getElementById("battery-value");
+    const batteryBar = document.getElementById("battery-bar");
+    const batteryStatus = document.getElementById("battery-status");
+
+    socket.on("monitor:stats", ({ cpu, ram, disk, battery }) => {
       cpuValue.textContent = `${cpu.usage}%`;
       cpuBar.style.width = `${cpu.usage}%`;
       cpuBar.className = `stat-bar${cpu.usage > 80 ? " stat-bar--danger" : cpu.usage > 60 ? " stat-bar--warn" : ""}`;
@@ -737,6 +853,17 @@
       ramValue.textContent = `${formatBytes(ram.used)} / ${formatBytes(ram.total)}`;
       ramBar.style.width = `${ramPct}%`;
       ramBar.className = `stat-bar${ramPct > 80 ? " stat-bar--danger" : ramPct > 60 ? " stat-bar--warn" : ""}`;
+
+      if (battery) {
+        batteryCard.style.display = "";
+        batteryValue.textContent = `${battery.percent}%`;
+        batteryBar.style.width = `${battery.percent}%`;
+        batteryBar.className = `stat-bar${battery.percent < 20 ? " stat-bar--danger" : battery.percent < 40 ? " stat-bar--warn" : ""}`;
+        const timeStr = battery.timeRemaining > 0 ? ` — ${battery.timeRemaining} min remaining` : "";
+        batteryStatus.textContent = battery.isCharging ? `Charging${timeStr}` : `On battery${timeStr}`;
+      } else {
+        batteryCard.style.display = "none";
+      }
 
       diskList.innerHTML = disk.filter(d => d.size > 0).map((d) => {
         const pct = Math.round((d.used / d.size) * 100);
