@@ -1,0 +1,55 @@
+const si = require('systeminformation');
+
+const INTERVAL_MS = 2000;
+const _timers = new Map();
+
+async function getStats() {
+  const [cpuLoad, mem, disk] = await Promise.all([
+    si.currentLoad(),
+    si.mem(),
+    si.fsSize()
+  ]);
+
+  return {
+    cpu: {
+      usage: Math.round(cpuLoad.currentLoad)
+    },
+    ram: {
+      used: mem.active,
+      total: mem.total
+    },
+    disk: disk.map(d => ({
+      fs: d.fs,
+      mount: d.mount,
+      used: d.used,
+      size: d.size
+    }))
+  };
+}
+
+function startStream(socket) {
+  if (_timers.has(socket.id)) return;
+
+  async function emit() {
+    try {
+      const stats = await getStats();
+      socket.emit('monitor:stats', stats);
+    } catch {
+      // silently skip on transient errors
+    }
+  }
+
+  emit();
+  const timer = setInterval(emit, INTERVAL_MS);
+  _timers.set(socket.id, timer);
+}
+
+function stopStream(socket) {
+  const timer = _timers.get(socket.id);
+  if (timer) {
+    clearInterval(timer);
+    _timers.delete(socket.id);
+  }
+}
+
+module.exports = { getStats, startStream, stopStream };

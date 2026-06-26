@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#08111f" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>NodeControl | Monitor</title>
+  </head>
+  <body data-page="monitor">
+    <main class="container">
+      <header class="topbar">
+        <div>
+          <h1>NodeControl</h1>
+          <p class="muted">Monitor</p>
+        </div>
+        <nav class="nav">
+          <a href="/notes.html">Notes</a>
+          <a href="/files.html">Files</a>
+          <a href="/system.html">System</a>
+          <a class="active" href="/monitor.html">Monitor</a>
+          <a href="/clipboard.html">Clipboard</a>
+          <button id="logout-button" type="button" class="secondary">Logout</button>
+        </nav>
+      </header>
+
+      <section class="panel">
+        <p id="monitor-status" class="message" aria-live="polite">Connecting...</p>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-label">CPU</div>
+            <div class="stat-value" id="cpu-value">--%</div>
+            <div class="stat-bar-track"><div class="stat-bar" id="cpu-bar"></div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">RAM</div>
+            <div class="stat-value" id="ram-value">-- / --</div>
+            <div class="stat-bar-track"><div class="stat-bar" id="ram-bar"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 class="section-title">Disk</h2>
+        <div id="disk-list" class="list"></div>
+      </section>
+    </main>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
