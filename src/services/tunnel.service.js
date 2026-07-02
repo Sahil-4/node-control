@@ -15,13 +15,15 @@ function status() {
   };
 }
 
-function start(port) {
+function start(port, host) {
   return new Promise((resolve, reject) => {
     if (_proc) {
       return resolve(status());
     }
 
-    const proc = spawn('cloudflared', ['tunnel', '--url', `http://localhost:${port}`], {
+    // 0.0.0.0 / :: means "bind all interfaces" — cloudflared must reach it via loopback
+    const bindHost = (!host || host === '0.0.0.0' || host === '::') ? '127.0.0.1' : host;
+    const proc = spawn('cloudflared', ['tunnel', '--url', `http://${bindHost}:${port}`], {
       stdio: ['ignore', 'pipe', 'pipe']
     });
 

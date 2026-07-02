@@ -14,7 +14,8 @@ router.post('/start', async (req, res, next) => {
   const ip = req.clientIp || req.ip || '-';
   try {
     const port = Number(process.env.PORT) || 3000;
-    const result = await tunnelService.start(port);
+    const host = process.env.HOST || '127.0.0.1';
+    const result = await tunnelService.start(port, host);
     logger.log('TUNNEL_START', ip, `url=${result.url}`);
     res.json(result);
   } catch (err) {
