@@ -21,9 +21,11 @@ const storage = multer.diskStorage({
   }
 });
 
+const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB) || 50;
+
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     try {
       sanitizeFilename(path.basename(file.originalname));
