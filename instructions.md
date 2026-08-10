@@ -114,6 +114,79 @@ HOST=0.0.0.0
 
 ---
 
+## Local HTTPS Setup (`admin.blackbox.loc`)
+
+NodeControl runs behind nginx at `https://admin.blackbox.loc` on port `8056` internally.
+
+The nginx vhost config is at `/etc/nginx/sites-available/admin.blackbox.loc.conf`.
+The mkcert cert is at `/home/alpha/.local/share/mkcert/admin.blackbox.loc.pem`.
+
+**Install CA in browser (one-time per device)**
+
+```bash
+mkcert -install        # desktop (Chrome/Firefox)
+```
+
+For Android: copy `$(mkcert -CAROOT)/rootCA.pem` to the phone and install via
+Settings → Security → Encryption & credentials → Install a certificate → CA certificate.
+
+---
+
+## If the Machine's LAN IP Changes
+
+NodeControl itself needs no changes (`HOST=127.0.0.1` in `.env`).
+Only the system-level DNS config needs updating:
+
+**1. `/etc/dnsmasq.conf`**
+
+```bash
+# Find and update this line:
+address=/.loc/<OLD_IP>
+# → change to:
+address=/.loc/<NEW_IP>
+```
+
+**2. `/etc/hosts.lan`**
+
+```bash
+sudo sed -i 's/<OLD_IP>/<NEW_IP>/g' /etc/hosts.lan
+```
+
+**3. Restart dnsmasq**
+
+```bash
+sudo systemctl restart dnsmasq
+```
+
+This affects all `.loc` domains on the machine, not just NodeControl.
+To avoid this entirely, assign a static IP via your router's DHCP reservation.
+
+---
+
+## Running as a Service (systemd)
+
+A production-grade systemd unit file is included at `nodecontrol.service`.
+
+**Install**
+
+```bash
+sudo cp nodecontrol.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now nodecontrol
+```
+
+**Daily commands**
+
+```bash
+systemctl status nodecontrol                 # health check
+journalctl -u nodecontrol -f                 # live logs
+journalctl -u nodecontrol --since today      # today's logs
+sudo systemctl restart nodecontrol           # restart
+sudo systemctl stop nodecontrol              # stop
+```
+
+---
+
 ## Authentication
 
 - HTTP Basic Auth on every API request
