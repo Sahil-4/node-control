@@ -1,0 +1,91 @@
+# NodeControl systemd service unit
+# Install: sudo cp nodecontrol.service /etc/systemd/system/
+#          sudo systemctl daemon-reload
+#          sudo systemctl enable --now nodecontrol
+#
+# Logs:    journalctl -u nodecontrol -f
+# Status:  systemctl status nodecontrol
+#
+# NVM note: The node binary path below is version-pinned.
+#   To use a stable path that survives node upgrades, run once:
+#     sudo ln -sf /home/alpha/.nvm/versions/node/v24.14.0/bin/node /usr/local/bin/node
+#   Then replace ExecStart below with: /usr/local/bin/node src/server.js
+
+[Unit]
+Description=NodeControl — local-first PWA control panel
+Documentation=https://github.com/Sahil-4/NodeControl
+After=network.target
+Wants=network.target
+
+[Service]
+# ── Identity ──────────────────────────────────────────────────────────────────
+Type=simple
+User=alpha
+Group=alpha
+WorkingDirectory=/srv/alpha/node-control
+
+# ── Process ───────────────────────────────────────────────────────────────────
+ExecStart=/home/alpha/.nvm/versions/node/v24.14.0/bin/node src/server.js
+ExecReload=/bin/kill -HUP $MAINPID
+
+# ── Environment ───────────────────────────────────────────────────────────────
+Environment=NODE_ENV=production
+EnvironmentFile=-/srv/alpha/node-control/.env
+
+# ── Restart policy ────────────────────────────────────────────────────────────
+Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=60s
+StartLimitBurst=3
+
+# ── Timeouts ──────────────────────────────────────────────────────────────────
+TimeoutStartSec=30s
+TimeoutStopSec=30s
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nodecontrol
+
+# ── Resource limits ───────────────────────────────────────────────────────────
+LimitNOFILE=65535
+
+# ── Security hardening ────────────────────────────────────────────────────────
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+
+# Filesystem protection — app needs write access to logs/, uploads/, scope/, .temp
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/srv/alpha/node-control/logs
+ReadWritePaths=/srv/alpha/node-control/uploads
+ReadWritePaths=/srv/alpha/node-control/scope
+ReadWritePaths=/srv/alpha/node-control/.temp
+
+# Kernel / namespace protection
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectProc=invisible
+
+# Capability restrictions — unprivileged port (8056), no root caps needed
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# Syscall allow-list — covers everything a Node.js HTTP server needs
+SystemCallFilter=@system-service @network-io @io-event
+SystemCallErrorNumber=EPERM
+SystemCallArchitectures=native
+
+# Misc hardening
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RemoveIPC=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+MemoryDenyWriteExecute=no
+
+[Install]
+WantedBy=multi-user.target
